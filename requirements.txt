@@ -2,3 +2,4 @@ SQLAlchemy
 psycopg[binary]
 pgvector
 python-dotenv
+sentence-transformers
