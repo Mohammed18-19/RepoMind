@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
 
@@ -19,6 +19,7 @@ SessionLocal = sessionmaker(
     autocommit=False,
 )
 
+Base = declarative_base()
 
 def test_connection():
     with engine.connect() as connection:
