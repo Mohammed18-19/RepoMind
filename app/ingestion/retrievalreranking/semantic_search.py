@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import SessionLocal
 from app.ingestion.embeddings.embedding_service import EmbeddingService
@@ -22,7 +23,9 @@ class SemanticSearch:
             distance = Chunk.embedding.cosine_distance(query_embedding)
 
             statement = (
-                select(Chunk, distance)
+                select(Chunk)
+                .options(selectinload(Chunk.file))
+                .add_columns(distance)
                 .order_by(distance)
                 .limit(top_k)
             )

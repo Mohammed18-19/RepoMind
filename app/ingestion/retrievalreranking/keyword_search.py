@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.database import SessionLocal
 from app.models.chunk import Chunk
@@ -15,6 +16,7 @@ class KeywordSearch:
         try:
             statement = (
                 select(Chunk)
+                .options(selectinload(Chunk.file))
                 .where(Chunk.content.ilike(f"%{query}%"))
                 .limit(top_k)
             )
