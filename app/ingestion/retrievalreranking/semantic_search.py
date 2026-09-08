@@ -9,7 +9,11 @@ class SemanticSearch:
     def __init__(self):
         self.embedding_service = EmbeddingService()
 
-    def search(self, query: str, top_k: int = 5) -> list[Chunk]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+    ) -> list[tuple[Chunk, float]]:
         query_embedding = self.embedding_service.embed(query)
 
         db = SessionLocal()
@@ -18,12 +22,17 @@ class SemanticSearch:
             distance = Chunk.embedding.cosine_distance(query_embedding)
 
             statement = (
-                select(Chunk)
+                select(Chunk, distance)
                 .order_by(distance)
                 .limit(top_k)
             )
 
-            return db.execute(statement).scalars().all()
+            results = db.execute(statement).all()
+
+            return [
+                (chunk, 1 - distance_value)
+                for chunk, distance_value in results
+            ]
 
         finally:
             db.close()
