@@ -14,3 +14,7 @@ class Repository(Base):
     file_count = Column(Integer, nullable=False, default=0)
 
     files = relationship("File", back_populates="repository")
+    conversations = relationship(
+        "Conversation",
+        back_populates="repository"
+    )
