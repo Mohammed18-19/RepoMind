@@ -16,10 +16,17 @@ class RAGGenerator:
         )
         self.prompt_builder = RAGPrompt()
 
-    def generate(self, question: str, context: str) -> str:
+    def generate(
+        self,
+        question: str,
+        context: str,
+        history: str = "",
+    ) -> str:
+
         prompt = self.prompt_builder.build(
             question=question,
             context=context,
+            history=history,
         )
 
         response = self.client.models.generate_content(
