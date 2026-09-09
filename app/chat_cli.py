@@ -73,7 +73,8 @@ def main():
             try:
                 answer = pipeline.answer(
                     question=question,
-                    conversation_id=conversation.id,
+                    repository_id=repository.id,
+                    conversation_id=conversation.id
                 )
 
                 print()
