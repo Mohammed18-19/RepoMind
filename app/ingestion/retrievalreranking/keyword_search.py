@@ -39,10 +39,23 @@ class KeywordSearch:
                 search_query,
             )
 
-            identifier_tokens = re.findall(
-                r"[A-Za-z_][A-Za-z0-9_]{2,}",
-                query,
-            )
+            stopwords = {
+                "how", "does", "what", "why", "when", "where",
+                "can", "could", "would", "should",
+                "the", "a", "an", "and", "or", "with",
+                "for", "from", "into", "about", "this", "that",
+                "is", "are", "was", "were", "be", "to", "of",
+                "in", "on", "as", "by",
+            }
+
+            identifier_tokens = [
+                token
+                for token in re.findall(
+                    r"[A-Za-z_][A-Za-z0-9_]{2,}",
+                    query,
+                )
+                if token.lower() not in stopwords
+            ]
 
             conditions = [
                 search_vector.op("@@")(search_query)

@@ -3,15 +3,46 @@ from app.ingestion.retrievalreranking.keyword_search import KeywordSearch
 
 
 class HybridSearch:
-    RRF_K = 60
-
     SEMANTIC_TOP_K = 50
     KEYWORD_TOP_K = 50
-    RRF_TOP_K = 30
+
+    SEMANTIC_WEIGHT = 0.7
+    KEYWORD_WEIGHT = 0.3
 
     def __init__(self):
         self.semantic_search = SemanticSearch()
         self.keyword_search = KeywordSearch()
+
+    @staticmethod
+    def _normalize_scores(results: dict, score_key: str) -> None:
+        scores = [
+            result[score_key]
+            for result in results.values()
+            if result[score_key] is not None
+        ]
+
+        if not scores:
+            return
+
+        min_score = min(scores)
+        max_score = max(scores)
+
+        if max_score == min_score:
+            for result in results.values():
+                if result[score_key] is not None:
+                    result[f"normalized_{score_key}"] = 1.0
+            return
+
+        for result in results.values():
+            score = result[score_key]
+
+            if score is None:
+                result[f"normalized_{score_key}"] = 0.0
+            else:
+                result[f"normalized_{score_key}"] = (
+                    (score - min_score)
+                    / (max_score - min_score)
+                )
 
     def search(
         self,
@@ -34,50 +65,33 @@ class HybridSearch:
 
         results = {}
 
-        for rank, (chunk, semantic_score) in enumerate(
-            semantic_results,
-            start=1,
-        ):
+        for chunk, score in semantic_results:
             results[chunk.id] = {
                 "chunk": chunk,
-                "semantic_score": semantic_score,
-                "keyword_score": 0.0,
-                "semantic_rank": rank,
-                "keyword_rank": None,
+                "semantic_score": score,
+                "keyword_score": None,
             }
 
-        for rank, (chunk, keyword_score) in enumerate(
-            keyword_results,
-            start=1,
-        ):
+        for chunk, score in keyword_results:
             if chunk.id not in results:
                 results[chunk.id] = {
                     "chunk": chunk,
-                    "semantic_score": 0.0,
-                    "keyword_score": keyword_score,
-                    "semantic_rank": None,
-                    "keyword_rank": rank,
+                    "semantic_score": None,
+                    "keyword_score": score,
                 }
             else:
-                results[chunk.id]["keyword_score"] = keyword_score
-                results[chunk.id]["keyword_rank"] = rank
+                results[chunk.id]["keyword_score"] = score
+
+        self._normalize_scores(results, "semantic_score")
+        self._normalize_scores(results, "keyword_score")
 
         for result in results.values():
-            rrf_score = 0.0
-
-            if result["semantic_rank"] is not None:
-                rrf_score += 1 / (
-                    self.RRF_K
-                    + result["semantic_rank"]
-                )
-
-            if result["keyword_rank"] is not None:
-                rrf_score += 1 / (
-                    self.RRF_K
-                    + result["keyword_rank"]
-                )
-
-            result["hybrid_score"] = rrf_score
+            result["hybrid_score"] = (
+                self.SEMANTIC_WEIGHT
+                * result.get("normalized_semantic_score", 0.0)
+                + self.KEYWORD_WEIGHT
+                * result.get("normalized_keyword_score", 0.0)
+            )
 
         ranked_results = sorted(
             results.values(),
