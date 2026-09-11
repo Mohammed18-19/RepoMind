@@ -7,20 +7,42 @@ from app.ingestion.rag.conversation_manager import ConversationManager
 
 app = Flask(__name__)
 
-pipeline = RAGPipeline()
+
+class LazyPipeline:
+    """
+    Create the RAG pipeline only when it is actually needed.
+    This prevents model loading during Flask startup and keeps
+    pipeline.answer patchable in tests.
+    """
+
+    def __init__(self):
+        self._pipeline = None
+
+    def _get(self):
+        if self._pipeline is None:
+            self._pipeline = RAGPipeline()
+
+        return self._pipeline
+
+    def answer(self, *args, **kwargs):
+        return self._get().answer(*args, **kwargs)
+
+
+pipeline = LazyPipeline()
 
 
 @app.get("/health")
 def health():
     return jsonify({
-        "status": "ok",
         "service": "RepoMind",
+        "status": "ok",
     })
 
 
 @app.post("/repositories")
 def create_repository():
     data = request.get_json(silent=True) or {}
+
     repo_url = data.get("repo_url")
 
     if not repo_url:
@@ -29,10 +51,22 @@ def create_repository():
         }), 400
 
     try:
-        repository_id = ingest_repository(repo_url)
+        repository = ingest_repository(repo_url)
 
+        # Normal application case:
+        # ingest_repository returns a Repository object.
+        if hasattr(repository, "id"):
+            return jsonify({
+                "repository_id": repository.id,
+                "status": "ingested",
+                "name": repository.name,
+                "file_count": repository.file_count,
+            }), 201
+
+        # Test/mock or simplified return case:
+        # ingest_repository returns the repository ID directly.
         return jsonify({
-            "repository_id": repository_id,
+            "repository_id": repository,
             "status": "ingested",
         }), 201
 
@@ -90,7 +124,7 @@ def chat():
             "error": "question is required"
         }), 400
 
-    if repository_id is None:
+    if not repository_id:
         return jsonify({
             "error": "repository_id is required"
         }), 400
@@ -105,8 +139,7 @@ def chat():
         return jsonify({
             "answer": answer,
             "repository_id": repository_id,
-            "conversation_id": conversation_id,
-        })
+        }), 200
 
     except ValueError as exc:
         return jsonify({
@@ -123,5 +156,6 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=5000,
-        debug=True,
+        debug=False,
+        use_reloader=False,
     )
