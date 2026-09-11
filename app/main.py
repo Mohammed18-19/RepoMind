@@ -1,11 +1,16 @@
+import logging
+
 from flask import Flask, jsonify, request
 
+from app.logging_config import setup_logging
 from app.ingestion.ingest import ingest_repository
 from app.ingestion.rag.pipeline import RAGPipeline
 from app.ingestion.rag.conversation_manager import ConversationManager
 
-
 app = Flask(__name__)
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class LazyPipeline:
@@ -50,6 +55,9 @@ def create_repository():
             "error": "repo_url is required"
         }), 400
 
+    logger.info("Starting repository ingestion: %s", repo_url)
+
+
     try:
         repository = ingest_repository(repo_url)
 
@@ -70,9 +78,10 @@ def create_repository():
             "status": "ingested",
         }), 201
 
-    except Exception as exc:
+    except Exception:
+        logger.exception("Repository ingestion failed")
         return jsonify({
-            "error": str(exc)
+            "error": "Failed to ingest repository."
         }), 500
 
 
@@ -102,9 +111,10 @@ def create_conversation():
             "title": conversation.title,
         }), 201
 
-    except Exception as exc:
+    except Exception:
+        logger.exception("Conversation creation failed")
         return jsonify({
-            "error": str(exc)
+            "error": "Failed to create conversation."
         }), 500
 
     finally:
@@ -129,11 +139,23 @@ def chat():
             "error": "repository_id is required"
         }), 400
 
+    logger.info(
+        "Processing chat request: repository_id=%s conversation_id=%s",
+        repository_id,
+        conversation_id,
+    )
+
     try:
         answer = pipeline.answer(
             question=question,
             repository_id=repository_id,
             conversation_id=conversation_id,
+        )
+
+        logger.info(
+            "Chat request completed: repository_id=%s conversation_id=%s",
+            repository_id,
+            conversation_id,
         )
 
         return jsonify({
@@ -142,13 +164,15 @@ def chat():
         }), 200
 
     except ValueError as exc:
+        logger.warning("Invalid chat request: %s", exc)
         return jsonify({
             "error": str(exc)
         }), 400
 
-    except Exception as exc:
+    except Exception:
+        logger.exception("Chat request failed")
         return jsonify({
-            "error": str(exc)
+            "error": "Failed to process chat request."
         }), 500
 
 
