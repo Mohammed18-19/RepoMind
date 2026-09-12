@@ -63,10 +63,7 @@ def ingest_repository(repo_url: str) -> int:
         )
 
         if existing_repository is not None:
-            raise ValueError(
-                f"Repository '{repository_name}' already exists "
-                f"with ID {existing_repository.id}."
-            )
+            return existing_repository
 
         # ---------------------------------------------------------
         # Clone repository
