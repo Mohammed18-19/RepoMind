@@ -1,5 +1,10 @@
 # RepoMind
 
+## UI Preview
+
+![RepoMind UI Preview](frontend/public/RepoMind-ui-preview.png)
+
+
 ### AI Codebase Intelligence System powered by RAG
 
 **RepoMind** is an AI-powered codebase intelligence system that allows developers to understand unfamiliar software repositories through natural-language questions.
